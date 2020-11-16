@@ -1,0 +1,7 @@
+*.csv
+*.out
+*.dict
+*.sqlite
+*.sql
+*.qdrep
+./results/sbatch/*
