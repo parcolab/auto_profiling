@@ -7,3 +7,5 @@
 *.ncu-rep
 *.pth.tar
 ./results/sbatch/*
+*/event_files
+*.pb
