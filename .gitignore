@@ -4,4 +4,6 @@
 *.sqlite
 *.sql
 *.qdrep
+*.ncu-rep
+*.pth.tar
 ./results/sbatch/*
