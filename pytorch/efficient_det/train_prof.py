@@ -91,7 +91,8 @@ parser.add_argument(
     'N processes per node, which has N GPUs. This is the '
     'fastest way to use PyTorch for either single node or '
     'multi node data parallel training')
-
+parser.add_argument('--iter', default=130, type=int)
+parser.add_argument('--wramup', default=30, type=int)
 iteration = 1
 
 
@@ -104,47 +105,49 @@ def train(train_loader, model, scheduler, optimizer, epoch, args):
     model.module.is_training = True
     model.module.freeze_bn()
     optimizer.zero_grad()
-    for idx, (images, annotations) in enumerate(train_loader):
-        if iteration >= 30:
-            profiler.start()
-        images = images.cuda().float()
-        annotations = annotations.cuda()
-        classification_loss, regression_loss = model([images, annotations])
-        classification_loss = classification_loss.mean()
-        regression_loss = regression_loss.mean()
-        loss = classification_loss + regression_loss
-        if bool(loss == 0):
-            print('loss equal zero(0)')
-            continue
-        loss.backward()
-        if (idx + 1) % args.grad_accumulation_steps == 0:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
-            optimizer.step()
-            optimizer.zero_grad()
 
-        total_loss.append(loss.item())
-        if(iteration % 2 == 0):
-            print('{} iteration: training ...'.format(iteration))
-            ans = {
-                'epoch': epoch,
-                'iteration': iteration,
-                'cls_loss': classification_loss.item(),
-                'reg_loss': regression_loss.item(),
-                'mean_loss': np.mean(total_loss)
-            }
-            for key, value in ans.items():
-                print('    {:15s}: {}'.format(str(key), value))
-        iteration += 1
-        if iteration > 130:
-            break
-    profiler.stop()
-    scheduler.step(np.mean(total_loss))
-    result = {
-        'time': time.time() - start,
-        'loss': np.mean(total_loss)
-    }
-    for key, value in result.items():
-        print('    {:15s}: {}'.format(str(key), value))
+    with torch.autograd.profiler.emit_nvtx():
+        for idx, (images, annotations) in enumerate(train_loader):
+            if iteration >= args.wramup:
+                profiler.start()
+            images = images.cuda().float()
+            annotations = annotations.cuda()
+            classification_loss, regression_loss = model([images, annotations])
+            classification_loss = classification_loss.mean()
+            regression_loss = regression_loss.mean()
+            loss = classification_loss + regression_loss
+            if bool(loss == 0):
+                print('loss equal zero(0)')
+                continue
+            loss.backward()
+            if (idx + 1) % args.grad_accumulation_steps == 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
+                optimizer.step()
+                optimizer.zero_grad()
+
+            total_loss.append(loss.item())
+            if(iteration % 2 == 0):
+                print('{} iteration: training ...'.format(iteration))
+                ans = {
+                    'epoch': epoch,
+                    'iteration': iteration,
+                    'cls_loss': classification_loss.item(),
+                    'reg_loss': regression_loss.item(),
+                    'mean_loss': np.mean(total_loss)
+                }
+                for key, value in ans.items():
+                    print('    {:15s}: {}'.format(str(key), value))
+            iteration += 1
+            if iteration > args.iter:
+                break
+        profiler.stop()
+        scheduler.step(np.mean(total_loss))
+        result = {
+            'time': time.time() - start,
+            'loss': np.mean(total_loss)
+        }
+        for key, value in result.items():
+            print('    {:15s}: {}'.format(str(key), value))
 
 
 def test(dataset, model, epoch, args):
@@ -339,5 +342,4 @@ def main():
 
 
 if __name__ == "__main__":
-    with torch.autograd.profiler.emit_nvtx():
-        main()
+    main()
