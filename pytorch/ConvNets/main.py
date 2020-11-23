@@ -551,10 +551,10 @@ if __name__ == "__main__":
     add_parser_arguments(parser)
     args = parser.parse_args()
     cudnn.benchmark = True
-    with torch.autograd.profiler.profile(enabled=True, use_cuda=True, record_shapes=False, profile_memory=True) as prof:
-    #with torch.autograd.profiler.emit_nvtx():
+    #with torch.autograd.profiler.profile(enabled=True, use_cuda=True, record_shapes=False, profile_memory=True) as prof:
+    with torch.autograd.profiler.emit_nvtx():
         main(args)
-    file = open(args.prof_output +"pytorch-prof.out", 'w')
-    #file.write(prof.key_averages().table(sort_by='cuda_time_total',top_level_events_only=False))
-    file.write(prof.key_averages().table(sort_by='cuda_time_total',top_level_events_only=True))
-    file.close()
+    #file = open(args.prof_output +"pytorch-prof.out", 'w')
+    ##file.write(prof.key_averages().table(sort_by='cuda_time_total',top_level_events_only=False))
+    #file.write(prof.key_averages().table(sort_by='cuda_time_total',top_level_events_only=True))
+    #file.close()
