@@ -11,3 +11,4 @@
 *.pb
 *.log
 */**/__pycache__/*
+./pytorch/BERT/data*
