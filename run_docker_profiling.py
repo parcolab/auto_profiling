@@ -1,0 +1,61 @@
+import argparse
+import os
+parser = argparse.ArgumentParser(description='auto profiling tool')
+parser.add_argument('--ncu', help="use nsight compute", action='store_true')
+parser.add_argument('--mode', help="pytorch or tensorflow")
+parser.add_argument('--model', help="chooses model")
+parser.add_argument('--batchs', type=int, help="choolse_batchsize", default=-1)
+parser.add_argument('--gpus', type=int, help="number of gpus to proflie", default=1)
+
+args = parser.parse_args()
+
+pytorch_dirs = {
+    'ConvNets': ['resnet18','resnet18', 'resnet34','resnet50', 'resnet101', 'resnet152','resnext101-32x4d'],
+    'imagenet' :
+        ['alexnet', 'densenet121','densenet169', 'densenet201', 'densenet161', 'googlenet', 'inception_v3_google', 'mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3',
+            'mobilenet_v2', 'resnet18', 'resnet34','resnet50', 'resnet101', 'resnet152', 'resnext50_32x4d', 'resnext101_32x8d', 'wide_resnet50_2', 'wide_resnet101_2',
+            'shufflenetv2_x0.5', 'shufflenetv2_x1.0', 'shufflenetv2_x1.5', 'shufflenetv2_x2.0', 'squeezenet1_0', 'squeezenet1_1', 'vgg11', 'vgg13', 'vgg16', 'vgg19', 'vgg11_bn', 
+            'vgg13_bn', 'vgg13_bn', 'vgg13_bn'
+        ],
+    'efficient_det': 
+        ['efficientdet-d0', 'efficientdet-d1', 'efficientdet-d2', 'efficientdet-d3', 'efficientdet-d4', 'efficientdet-d5', 'efficientdet-d6', 'efficientdet-d7'],
+    'BERT': ['bert-large-uncased']
+    }
+tensorflow_dirs = {}
+pytorch_commands = {
+        'ConvNets' : f'\"python ./multiproc.py --nproc_per_node {args.gpus} ./main.py --arch {args.model} -b {args.batchs} --training-only -p 10 --prof 1 --epochs 1 --data-backend pytorch /data/ILSVRC2012"',
+        'imagenet' : f'\"python main.py -a {args.model} --epochs 1 -b {args.batchs} -j {args.gpus} --multiprocessing-distributed --rank=0 /data/ILSVRC2012\"',
+        'efficient_det': f'\"python train_prof.py --dataset VOC --dataset_root /data/VOCdevkit/ --network {args.model} --batch_size {args.batchs} --iter 100 --wramup 30\"',
+        'BERT': ''
+    }
+tensorflow_commands = {}
+working_dir = '/data/auto_profiling/{args.mode}/'
+working_dirs = {}
+commands = {}
+result_dir = '/data/outputs/{args.model}-{args.gpus}-{args.batchs}-'
+working_dir = working_dir+ '/'+args.mode
+
+if args.mode == 'pytorch':
+    working_dirs = pytorch_dirs
+    commands = pytorch_commands
+elif args.mode == 'tensorflow':
+    working_dirs = tensorflow_dirs
+    commands = tensorflow_commands
+
+model_dir = ''
+docker_cmd =f'sbatch --gres=gpu:{args.gpus} sbatch_pytorch_docker.sh '
+profile_cmd =f'nsys prfile -c cudaProfilerApi --stop-on-range-end true -t cuda,nvtx -f true --export sqlite -o {result_dir} '
+if args.ncu:
+    profiler_cmd = 'ncu '
+for keys, model_list in working_dirs.items():
+    if args.model in model_list:
+        model_dir = keys
+        break
+if model_dir == '':
+    print("cannnot find model")
+    exit(-1)
+
+command = commands[model_dir]
+command = docker_cmd + profile_cmd + command
+os.makedirs('/home/hhk971/'+result_dir, exist_ok=True)
+os.system(command)
