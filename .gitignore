@@ -9,3 +9,5 @@
 ./results/sbatch/*
 */event_files
 *.pb
+*.log
+*/**/__pycache__/*
