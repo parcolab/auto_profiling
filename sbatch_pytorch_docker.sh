@@ -1,9 +1,5 @@
 #!/bin/bash
 #SBATCH -p A100
 
-CMD=$1
-docker run -it --rm \ 
-    --gpus device=$CUDA_VISIBLE_DEVICES \
-    -v /home/hhk971/data:/data \
-    nvcr.io/nvidia/pytorch:20.10-py3 \
-    $CMD
+docker exec hhkA100_8 sh /data/auto_profiling/docker_scripts.sh "$1" "$2"
+

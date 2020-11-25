@@ -77,6 +77,7 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
+parser.add_argument('--gpus', default=1, type=int, help='number of gpus to run')
 
 best_acc1 = 0
 
@@ -103,7 +104,7 @@ def main():
 
     args.distributed = args.world_size > 1 or args.multiprocessing_distributed
 
-    ngpus_per_node = torch.cuda.device_count()
+    ngpus_per_node = args.gpus
     if args.multiprocessing_distributed:
         # Since we have ngpus_per_node processes per node, the total world_size
         # needs to be adjusted accordingly
@@ -283,6 +284,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
         # measure data loading time
+        if i > 30: 
+            profiler.start()
         data_time.update(time.time() - end)
 
         if args.gpu is not None:
@@ -309,6 +312,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         batch_time.update(time.time() - end)
         end = time.time()
         if i >= args.iters: 
+            profiler.stop()
             break
         if i % args.print_freq == 0:
             progress.display(i)

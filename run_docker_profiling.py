@@ -23,17 +23,16 @@ pytorch_dirs = {
     }
 tensorflow_dirs = {}
 pytorch_commands = {
-        'ConvNets' : f'\"python ./multiproc.py --nproc_per_node {args.gpus} ./main.py --arch {args.model} -b {args.batchs} --training-only -p 10 --prof 1 --epochs 1 --data-backend pytorch /data/ILSVRC2012"',
-        'imagenet' : f'\"python main.py -a {args.model} --epochs 1 -b {args.batchs} -j {args.gpus} --multiprocessing-distributed --rank=0 /data/ILSVRC2012\"',
-        'efficient_det': f'\"python train_prof.py --dataset VOC --dataset_root /data/VOCdevkit/ --network {args.model} --batch_size {args.batchs} --iter 100 --wramup 30\"',
+        'ConvNets' : f'python ./multiproc.py --nproc_per_node {args.gpus} ./main.py --arch {args.model} -b {args.batchs} --training-only -p 10 --prof 1 --epochs 1 --data-backend pytorch /data/ILSVRC2012',
+        'imagenet' : f'python main.py -a {args.model} --epochs 1 -b {args.batchs} -j {args.gpus} --multiprocessing-distributed --gpus {args.gpus} --rank=0 /data/ILSVRC2012',
+        'efficient_det': f'python train_prof.py --dataset VOC --dataset_root /data/VOCdevkit/ --network {args.model} --batch_size {args.batchs} --iter 100 --wramup 30',
         'BERT': ''
     }
 tensorflow_commands = {}
-working_dir = '/data/auto_profiling/{args.mode}/'
+working_dir = f'/data/auto_profiling/{args.mode}/'
 working_dirs = {}
 commands = {}
-result_dir = '/data/outputs/{args.model}-{args.gpus}-{args.batchs}-'
-working_dir = working_dir+ '/'+args.mode
+result_dir = f'/data/outputs/{args.model}-{args.gpus}-{args.batchs}-'
 
 if args.mode == 'pytorch':
     working_dirs = pytorch_dirs
@@ -43,8 +42,8 @@ elif args.mode == 'tensorflow':
     commands = tensorflow_commands
 
 model_dir = ''
-docker_cmd =f'sbatch --gres=gpu:{args.gpus} sbatch_pytorch_docker.sh '
-profile_cmd =f'nsys prfile -c cudaProfilerApi --stop-on-range-end true -t cuda,nvtx -f true --export sqlite -o {result_dir} '
+docker_cmd =f'sbatch --gres=gpu:8 sbatch_pytorch_docker.sh '
+profile_cmd = f'nsys profile -c cudaProfilerApi --stop-on-range-end true -t cuda,nvtx -f true --export sqlite -o {result_dir}/nsys_profile '
 if args.ncu:
     profiler_cmd = 'ncu '
 for keys, model_list in working_dirs.items():
@@ -54,8 +53,9 @@ for keys, model_list in working_dirs.items():
 if model_dir == '':
     print("cannnot find model")
     exit(-1)
-
+working_dir = working_dir + model_dir
 command = commands[model_dir]
-command = docker_cmd + profile_cmd + command
+command = f'{docker_cmd} \"{working_dir}\" \"{profile_cmd} {command}\"'
+print(command)
 os.makedirs('/home/hhk971/'+result_dir, exist_ok=True)
 os.system(command)

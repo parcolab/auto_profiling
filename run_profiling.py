@@ -7,7 +7,7 @@ parser.add_argument('--model', help="chooses model")
 parser.add_argument('--batchs', type=int, help="choolse_batchsize", default=-1)
 parser.add_argument('--gpus', type=int, help="number of gpus to proflie", default=1)
 pytorch_dirs = {
-    #'ConvNets': ['resnet18','resnet18', 'resnet34','resnet50', 'resnet101', 'resnet152','resnext101-32x4d'],
+    'ConvNets': ['resnet18','resnet18', 'resnet34','resnet50', 'resnet101', 'resnet152','resnext101-32x4d'],
     'imagenet' :
         ['alexnet', 'densenet121','densenet169', 'densenet201', 'densenet161', 'googlenet', 'inception_v3_google', 'mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3',
             'mobilenet_v2', 'resnet18', 'resnet34','resnet50', 'resnet101', 'resnet152', 'resnext50_32x4d', 'resnext101_32x8d', 'wide_resnet50_2', 'wide_resnet101_2',
