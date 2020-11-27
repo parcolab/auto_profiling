@@ -26,7 +26,7 @@ pytorch_commands = {
         'ConvNets' : f'python ./multiproc.py --nproc_per_node {args.gpus} ./main.py --arch {args.model} -b {args.batchs} --training-only -p 10 --prof 1 --epochs 1 --data-backend pytorch /data/ILSVRC2012',
         'imagenet' : f'python main.py -a {args.model} --epochs 1 -b {args.batchs} -j {args.gpus} --multiprocessing-distributed --gpus {args.gpus} --rank=0 /data/ILSVRC2012',
         'efficient_det': f'python train_prof.py --dataset VOC --dataset_root /data/VOCdevkit/ --network {args.model} --batch_size {args.batchs} --iter 100 --wramup 30',
-        'BERT': ''
+        'BERT': f'{args.batchs} {args.gpus} 130'
     }
 tensorflow_commands = {}
 working_dir = f'/data/auto_profiling/{args.mode}/'
@@ -53,9 +53,15 @@ for keys, model_list in working_dirs.items():
 if model_dir == '':
     print("cannnot find model")
     exit(-1)
+
 working_dir = working_dir + model_dir
 command = commands[model_dir]
-command = f'{docker_cmd} \"{working_dir}\" \"{profile_cmd} {command}\"'
+
+if model_dir == 'BERT':
+    os.chdir('/home/hhk971' + working_dir)
+    command =f'sbatch --gres=gpu:8 -p A100 scripts/docker/launch.sh \"{profile_cmd}\" \"{command}\"'
+else:
+    command = f'{docker_cmd} \"{working_dir}\" \"{profile_cmd} {command}\"'
 print(command)
-os.makedirs('/home/hhk971/'+result_dir, exist_ok=True)
+os.makedirs('/home/hhk971'+result_dir, exist_ok=True)
 os.system(command)

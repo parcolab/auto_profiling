@@ -50,7 +50,9 @@ from apex.parallel.distributed import flat_dist_call
 import amp_C
 import apex_C
 from apex.amp import _amp_state
-
+import torch.cuda.profiler as profiler
+import pyprof
+pyprof.init()
 import dllogger
 from concurrent.futures import ProcessPoolExecutor
 
@@ -586,7 +588,8 @@ def main():
                 if raw_train_start is None:
                     raw_train_start = time.time()
                 for step, batch in enumerate(train_iter):
-
+                    if training_steps >= 30:
+                        profiler.start()
                     training_steps += 1
                     batch = [t.to(device) for t in batch]
                     input_ids, segment_ids, input_mask, masked_lm_labels, next_sentence_labels = batch
@@ -662,20 +665,22 @@ def main():
                             del train_dataloader
                             # thread.join()
                             return args, final_loss, train_time_raw, global_step
+                
 
                 del train_dataloader
                 # thread.join()
                 # Make sure pool has finished and switch train_dataloader
                 # NOTE: Will block until complete
                 train_dataloader, data_file = dataset_future.result(timeout=None)
-
+            profiler.stop()
             epoch += 1
 
 
 if __name__ == "__main__":
 
     now = time.time()
-    args, final_loss, train_time_raw, global_step = main()
+    with torch.autograd.profiler.emit_nvtx():
+        args, final_loss, train_time_raw, global_step = main()
     gpu_count = args.n_gpu
     global_step += args.phase1_end_step if (args.phase2 and args.resume_step > 0) else 0
     if args.resume_step == -1:

@@ -14,55 +14,56 @@
 # limitations under the License.
 
 echo "Container nvidia build = " $NVIDIA_BUILD_ID
-train_batch_size=${1:-8192}
-learning_rate=${2:-"6e-3"}
-precision=${3:-"fp16"}
-num_gpus=${4:-8}
-warmup_proportion=${5:-"0.2843"}
-train_steps=${6:-7038}
-save_checkpoint_steps=${7:-200}
-resume_training=${8:-"false"}
-create_logfile=${9:-"true"}
-accumulate_gradients=${10:-"true"}
-gradient_accumulation_steps=${11:-128}
-seed=${12:-12439}
-job_name=${13:-"bert_lamb_pretraining"}
-allreduce_post_accumulation=${14:-"true"}
-allreduce_post_accumulation_fp16=${15:-"true"}
-train_batch_size_phase2=${16:-4096}
-learning_rate_phase2=${17:-"4e-3"}
-warmup_proportion_phase2=${18:-"0.128"}
-train_steps_phase2=${19:-1563}
-gradient_accumulation_steps_phase2=${20:-512}
-DATASET=hdf5_lower_case_1_seq_len_128_max_pred_20_masked_lm_prob_0.15_random_seed_12345_dupe_factor_5_shard_1472_test_split_10/books_wiki_en_corpus/training # change this for other datasets
-DATA_DIR_PHASE1=${21:-$BERT_PREP_WORKING_DIR/${DATASET}/}
+PROFILE_CMD=$1
+train_batch_size=${2:-8192}
+learning_rate="6e-3"
+precision="fp32"
+num_gpus=${3:-8}
+warmup_proportion="0.2843"
+train_steps=${4:-130}
+save_checkpoint_steps=200
+resume_training="false"
+create_logfile="true"
+accumulate_gradients="true"
+gradient_accumulation_steps=1
+seed=12439
+job_name="bert_lamb_pretraining"
+allreduce_post_accumulation="true"
+allreduce_post_accumulation_fp16="true"
+train_batch_size_phase2=$5
+learning_rate_phase2="4e-3"
+warmup_proportion_phase2="0.128"
+train_steps_phase2=${6:-130}
+gradient_accumulation_steps_phase2=1
+DATASET=hdf5_lower_case_1_seq_len_128_max_pred_20_masked_lm_prob_0.15_random_seed_12345_dupe_factor_5/wikicorpus_en/ # change this for other datasets
+DATA_DIR_PHASE1=$BERT_PREP_WORKING_DIR/${DATASET}/
 BERT_CONFIG=bert_config.json
-DATASET2=hdf5_lower_case_1_seq_len_512_max_pred_80_masked_lm_prob_0.15_random_seed_12345_dupe_factor_5_shard_1472_test_split_10/books_wiki_en_corpus/training # change this for other datasets
-DATA_DIR_PHASE2=${22:-$BERT_PREP_WORKING_DIR/${DATASET2}/}
-CODEDIR=${23:-"/workspace/bert"}
-init_checkpoint=${24:-"None"}
+DATASET2=hdf5_lower_case_1_seq_len_512_max_pred_80_masked_lm_prob_0.15_random_seed_12345_dupe_factor_5/wikicorpus_en/ # change this for other datasets
+DATA_DIR_PHASE2=$BERT_PREP_WORKING_DIR/${DATASET2}/
+CODEDIR="/workspace/bert"
+init_checkpoint="None"
 RESULTS_DIR=$CODEDIR/results
 CHECKPOINTS_DIR=$RESULTS_DIR/checkpoints
 
-#mkdir -p $CHECKPOINTS_DIR
+mkdir -p $CHECKPOINTS_DIR
 
 
-#if [ ! -d "$DATA_DIR_PHASE1" ] ; then
-#   echo "Warning! $DATA_DIR_PHASE1 directory missing. Training cannot start"
-#fi
-#if [ ! -d "$RESULTS_DIR" ] ; then
-#   echo "Error! $RESULTS_DIR directory missing."
-#   exit -1
-#fi
-#if [ ! -d "$CHECKPOINTS_DIR" ] ; then
-#   echo "Warning! $CHECKPOINTS_DIR directory missing."
-#   echo "Checkpoints will be written to $RESULTS_DIR instead."
-#   CHECKPOINTS_DIR=$RESULTS_DIR
-#fi
-#if [ ! -f "$BERT_CONFIG" ] ; then
-#   echo "Error! BERT large configuration file not found at $BERT_CONFIG"
-#   exit -1
-#fi
+if [ ! -d "$DATA_DIR_PHASE1" ] ; then
+   echo "Warning! $DATA_DIR_PHASE1 directory missing. Training cannot start"
+fi
+if [ ! -d "$RESULTS_DIR" ] ; then
+   echo "Error! $RESULTS_DIR directory missing."
+   exit -1
+fi
+if [ ! -d "$CHECKPOINTS_DIR" ] ; then
+   echo "Warning! $CHECKPOINTS_DIR directory missing."
+   echo "Checkpoints will be written to $RESULTS_DIR instead."
+   CHECKPOINTS_DIR=$RESULTS_DIR
+fi
+if [ ! -f "$BERT_CONFIG" ] ; then
+   echo "Error! BERT large configuration file not found at $BERT_CONFIG"
+   exit -1
+fi
 
 PREC=""
 if [ "$precision" = "fp16" ] ; then
@@ -126,7 +127,8 @@ CMD+=" --do_train"
 CMD+=" --json-summary ${RESULTS_DIR}/dllogger.json "
 
 CMD="python3 -m torch.distributed.launch --nproc_per_node=$num_gpus $CMD"
-echo $CMD
+rm -rf $CHECKPOINTS_DIR
+$PROFILE_CMD $CMD
 #
 #if [ "$create_logfile" = "true" ] ; then
 #  export GBS=$(expr $train_batch_size \* $num_gpus)

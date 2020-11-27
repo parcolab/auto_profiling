@@ -1,12 +1,12 @@
 Initializing NVTX monkey patches
 Done with NVTX monkey patching
-=> creating model '('resnext101-32x4d', 'classic', 1000)'
-Version: {'net': <class 'image_classification.resnet.ResNet'>, 'block': <class 'image_classification.resnet.Bottleneck'>, 'cardinality': 32, 'layers': [3, 4, 23, 3], 'widths': [128, 256, 512, 1024], 'expansion': 2}
-Config: {'conv': <class 'torch.nn.modules.conv.Conv2d'>, 'conv_init': 'fan_out', 'nonlinearity': 'relu', 'last_bn_0_init': False, 'activation': <function <lambda> at 0x7faf4948e6a8>}
+=> creating model '('resnet101', 'classic', 1000)'
+Version: {'net': <class 'image_classification.resnet.ResNet'>, 'block': <class 'image_classification.resnet.Bottleneck'>, 'layers': [3, 4, 23, 3], 'widths': [64, 128, 256, 512], 'expansion': 4}
+Config: {'conv': <class 'torch.nn.modules.conv.Conv2d'>, 'conv_init': 'fan_out', 'nonlinearity': 'relu', 'last_bn_0_init': False, 'activation': <function <lambda> at 0x7f1f1b7987b8>}
 Num classes: 1000
-read 1281167 files from 1000 directories
-read 50000 files from 1000 directories
  ! Weight decay NOT applied to BN parameters 
 200
 114
 RUNNING EPOCHS FROM 0 TO 1
+Experiment ended
+94.63405323028564

@@ -1,10 +1,12 @@
 #!/bin/bash
+PROFILE_CMD=$1
+CMD=${2:-/bin/bash}
+NV_VISIBLE_DEVICES="all"
+NV_VISIBLE_DEVICES="all"
+DOCKER_BRIDGE="host"
 
-CMD=${1:-/bin/bash}
-NV_VISIBLE_DEVICES=${2:-"all"}
-DOCKER_BRIDGE=${3:-"host"}
-
-docker run -it --rm \
+echo "$PROFILE_CMD $CMD"
+docker run --rm \
   --gpus device=$NV_VISIBLE_DEVICES \
   --net=$DOCKER_BRIDGE \
   --shm-size=1g \
@@ -12,5 +14,4 @@ docker run -it --rm \
   --ulimit stack=67108864 \
   -e LD_LIBRARY_PATH='/workspace/install/lib/' \
   -v $PWD:/workspace/bert \
-  -v $PWD/results:/results \
-  bert $CMD
+  -v $PWD/results:/results -v /home/hhk971/data:/data bert bash scripts/run_pretraining.sh "$PROFILE_CMD" $CMD
