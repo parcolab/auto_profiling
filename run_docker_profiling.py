@@ -6,7 +6,13 @@ parser.add_argument('--mode', help="pytorch or tensorflow")
 parser.add_argument('--model', help="chooses model")
 parser.add_argument('--batchs', type=int, help="choolse_batchsize", default=-1)
 parser.add_argument('--gpus', type=int, help="number of gpus to proflie", default=1)
-
+parser.add_argument(
+        "--memory-format",
+        type=str,
+        default="nchw",
+        choices=["nchw", "nhwc"],
+        help="memory layout, nchw or nhwc",
+    )
 args = parser.parse_args()
 
 pytorch_dirs = {
@@ -23,7 +29,7 @@ pytorch_dirs = {
     }
 tensorflow_dirs = {}
 pytorch_commands = {
-        'ConvNets' : f'python ./multiproc.py --nproc_per_node {args.gpus} ./main.py --arch {args.model} -b {args.batchs} --training-only -p 10 --prof 1 --epochs 1 --data-backend pytorch /data/ILSVRC2012',
+        'ConvNets' : f'python ./multiproc.py --nproc_per_node {args.gpus} ./main.py --arch {args.model} -b {args.batchs} --training-only -p 10 --prof 100 --epochs 1 --data-backend pytorch --memory-format {args.memory_format} /data/ILSVRC2012',
         'imagenet' : f'python main.py -a {args.model} --epochs 1 -b {args.batchs} -j {args.gpus} --multiprocessing-distributed --gpus {args.gpus} --rank=0 /data/ILSVRC2012',
         'efficient_det': f'python train_prof.py --dataset VOC --dataset_root /data/VOCdevkit/ --network {args.model} --batch_size {args.batchs} --iter 100 --wramup 30',
         'BERT': f'{args.batchs} {args.gpus} 130'
@@ -32,7 +38,7 @@ tensorflow_commands = {}
 working_dir = f'/data/auto_profiling/{args.mode}/'
 working_dirs = {}
 commands = {}
-result_dir = f'/data/outputs/{args.model}-{args.gpus}-{args.batchs}-'
+result_dir = f'/data/outputs/{args.model}-{args.gpus}-{args.batchs}-{args.memory_format}'
 
 if args.mode == 'pytorch':
     working_dirs = pytorch_dirs
