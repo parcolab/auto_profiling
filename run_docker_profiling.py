@@ -6,8 +6,20 @@ parser.add_argument('--mode', help="pytorch or tensorflow")
 parser.add_argument('--model', help="chooses model")
 parser.add_argument('--batchs', type=int, help="choolse_batchsize", default=-1)
 parser.add_argument('--gpus', type=int, help="number of gpus to proflie", default=1)
-
+parser.add_argument(
+        "--memory-format",
+        type=str,
+        default="nchw",
+        choices=["nchw", "nhwc"],
+        help="memory layout, nchw or nhwc",
+    )
+parser.add_argument( "--sbn" , action='store_true')
 args = parser.parse_args()
+sbn_cmd = ''
+bn = 'bn'
+if args.sbn:
+    sbn_cmd = '--sync-batch-norm'
+    bn = 'sbn'
 
 pytorch_dirs = {
     'ConvNets': ['resnet18','resnet18', 'resnet34','resnet50', 'resnet101', 'resnet152','resnext101-32x4d'],
@@ -21,18 +33,22 @@ pytorch_dirs = {
         ['efficientdet-d0', 'efficientdet-d1', 'efficientdet-d2', 'efficientdet-d3', 'efficientdet-d4', 'efficientdet-d5', 'efficientdet-d6', 'efficientdet-d7'],
     'BERT': ['bert-large-uncased']
     }
-tensorflow_dirs = {}
+tensorflow_dirs = {
+    'ConvNets': ['resnet50']
+    }
 pytorch_commands = {
-        'ConvNets' : f'python ./multiproc.py --nproc_per_node {args.gpus} ./main.py --arch {args.model} -b {args.batchs} --training-only -p 10 --prof 1 --epochs 1 --data-backend pytorch /data/ILSVRC2012',
+        'ConvNets' : f'python ./multiproc.py --nproc_per_node {args.gpus} ./main.py --arch {args.model} -b {args.batchs} --training-only -p 10 --prof 100 --epochs 1 --data-backend pytorch --memory-format {args.memory_format} {sbn_cmd} /data/ILSVRC2012',
         'imagenet' : f'python main.py -a {args.model} --epochs 1 -b {args.batchs} -j {args.gpus} --multiprocessing-distributed --gpus {args.gpus} --rank=0 /data/ILSVRC2012',
         'efficient_det': f'python train_prof.py --dataset VOC --dataset_root /data/VOCdevkit/ --network {args.model} --batch_size {args.batchs} --iter 100 --wramup 30',
         'BERT': f'{args.batchs} {args.gpus} 130'
     }
-tensorflow_commands = {}
+tensorflow_commands = {
+        'ConvNets' : f'python ./main.py --mode=training_benchmark --batch_size {args.batchs} --data_dir=/data/ILSVRC2012/ --results_dir=./ --num_iter 130'
+    }
 working_dir = f'/data/auto_profiling/{args.mode}/'
 working_dirs = {}
 commands = {}
-result_dir = f'/data/outputs/{args.model}-{args.gpus}-{args.batchs}-'
+result_dir = f'/data/profiling/outputs/{args.model}/{args.memory_format}/{bn}/batch_{args.batchs}/gpu_{args.gpus}'
 
 if args.mode == 'pytorch':
     working_dirs = pytorch_dirs
@@ -42,10 +58,11 @@ elif args.mode == 'tensorflow':
     commands = tensorflow_commands
 
 model_dir = ''
-docker_cmd =f'sbatch --gres=gpu:8 sbatch_pytorch_docker.sh '
 profile_cmd = f'nsys profile -c cudaProfilerApi --stop-on-range-end true -t cuda,nvtx -f true --export sqlite -o {result_dir}/nsys_profile '
+#profile_cmd = f'dlprof --mode=pytorch --output_path={result_dir}  --nsys_profile_range=true --reports=summary'
 if args.ncu:
-    profiler_cmd = 'ncu '
+    result_dir = result_dir + '/ncu'
+    profile_cmd = f'ncu --nvtx --profile-from-start on -f --page raw --target-processes all --section SpeedOfLight  -o {result_dir}/ncu_output'
 for keys, model_list in working_dirs.items():
     if args.model in model_list:
         model_dir = keys
@@ -53,10 +70,13 @@ for keys, model_list in working_dirs.items():
 if model_dir == '':
     print("cannnot find model")
     exit(-1)
-
+if args.mode == 'pytorch':
+    docker_cmd =f'sbatch --gres=gpu:8 sbatch_pytorch_docker.sh '
+elif args.mode == 'tensorflow':
+    docker_cmd ='sbatch --gres=gpu:8 sbatch_tensorflow_docker.sh '
+    profile_cmd = 'dlprof --mode=tensorflow --reports=all --iter_start 30 --iter_stop=129 mpiexec --allow-run-as-root --bind-to socket -np {args.gpus}' 
 working_dir = working_dir + model_dir
-command = commands[model_dir]
-
+command = commands[model_dir] 
 if model_dir == 'BERT':
     os.chdir('/home/hhk971' + working_dir)
     command =f'sbatch --gres=gpu:8 -p A100 scripts/docker/launch.sh \"{profile_cmd}\" \"{command}\"'

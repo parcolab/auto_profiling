@@ -512,7 +512,29 @@ def main(args):
     
 
     model_and_loss.load_model_state(model_state)
-    
+    train_loop(
+        model_and_loss,
+        optimizer,
+        lr_policy,
+        train_loader,
+        val_loader,
+        args.fp16,
+        logger,
+        should_backup_checkpoint(args),
+        use_amp=args.amp,
+        batch_size_multiplier=batch_size_multiplier,
+        start_epoch=start_epoch,
+        end_epoch=(start_epoch + args.run_epochs)
+        if args.run_epochs != -1
+        else args.epochs,
+        best_prec1=best_prec1,
+        prof=30,
+        skip_training=args.evaluate,
+        skip_validation=args.training_only,
+        save_checkpoints=args.save_checkpoints and not args.evaluate,
+        checkpoint_dir=args.workspace,
+        checkpoint_filename=args.checkpoint_filename,
+    )   
     profiler.start()
     train_loop(
         model_and_loss,
@@ -549,7 +571,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
 
     add_parser_arguments(parser)
-    args = parser.parse_args()
+    argsn = parser.parse_args()
     cudnn.benchmark = True
     #with torch.autograd.profiler.profile(enabled=True, use_cuda=True, record_shapes=False, profile_memory=True) as prof:
     with torch.autograd.profiler.emit_nvtx():
