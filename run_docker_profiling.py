@@ -13,7 +13,10 @@ parser.add_argument(
         choices=["nchw", "nhwc"],
         help="memory layout, nchw or nhwc",
     )
+<<<<<<< HEAD
 parser.add_argument( "--sbn" , action='store_true')
+=======
+>>>>>>> b259dfa6cfb2e8cbeb7516eeb9f93d8a28416439
 args = parser.parse_args()
 sbn_cmd = ''
 bn = 'bn'
